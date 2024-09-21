@@ -1,3 +1,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+*{
+    font-family: 'Poppins', sans-serif;
+}
+/*write css for making the scrollbar absolute and only visible when hover on that group  */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: #b8b8b87b;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:vertical {
+    height: 50px;
+}
+::-webkit-scrollbar-thumb:horizontal {
+    width: 50px;
+}
+::-webkit-scrollbar-button {
+    display: none;
+}
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+::-webkit-scrollbar-track-piece:start {
+    background: transparent;
+}
+::-webkit-scrollbar-track-piece:end {
+    background: transparent;
+}
+::-webkit-scrollbar-track-piece {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:window-inactive {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:window-inactive:hover {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:horizontal:window-inactive {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:horizontal:window-inactive:hover {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:vertical:window-inactive {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb:vertical:window-inactive:hover {
+    background: transparent;
+}
+::-webkit-scrollbar-button:horizontal:decrement {
+    display: none;
+}
+::-webkit-scrollbar-button:horizontal:increment {
+    display: none;
+}
+::-webkit-scrollbar-button:vertical:decrement {
+    display: none;
+}
+::-webkit-scrollbar-button:vertical:increment {
+    display: none;
+}
+::-webkit-scrollbar-button:horizontal {
+    display: none;
+}
+::-webkit-scrollbar-button:vertical {
+    display: none;
+}
+::-webkit-scrollbar-button:horizontal:start {
+    display: none;
+}
+::-webkit-scrollbar-button:horizontal:end {
+    display: none;
+}
+::-webkit-scrollbar-button:vertical:start {
+    display: none;
+}
+::-webkit-scrollbar-button:vertical:end {
+    display: none;
+}
+::-webkit-scrollbar-corner:horizontal {
+    display: none;
+}
+::-webkit-scrollbar-corner:vertical {
+    display: none;
+}
+::-webkit-scrollbar-corner {
+    display: none;
+}
+::-webkit-resizer {
+    display: none;
+}
+
