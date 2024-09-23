@@ -2,7 +2,7 @@ import React from 'react';
 
 function PlaylistBtn(props) {
   return (
-    <div className='group flex flex-row gap-3 items-center p-2 rounded-lg hover:bg-[#1f1f1f]  '>
+    <div className='group flex flex-row gap-3 items-center p-2 rounded-lg hover:bg-[#1f1f1f]  ' onClick={props.onClick}>
       <div className='relative'>
         <div className='absolute bg-stone-800 bg-opacity-40 w-full h-full flex items-center justify-center opacity-0 invisible group-hover:opacity-100 group-hover:visible'>
           <svg viewBox="0 0 24 24" className='w-6'>

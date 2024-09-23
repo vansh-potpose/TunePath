@@ -10,6 +10,8 @@ import PlaylistWindow from '@/components/PlaylistWindow';
 export default function Home() {
   const [folderPath, setFolderPath] = useState('D:/Pracice/htlm/clones/Sportify-project/songs');
   const [playlists, setPlaylists] = useState([]);
+  const [currentSong, setCurrentSong] = useState(null);
+  const [currentplaylist, setCurrentPlaylist] = useState(null);
 
   useEffect(() => {
     const fetchPlaylists = async () => {
@@ -27,11 +29,11 @@ export default function Home() {
     <main>
       <div className="flex ">
 
-        <Sidebar playlists={playlists} folderPath={folderPath}/>
+        <Sidebar playlists={playlists} folderPath={folderPath}  setCurrentPlaylist={setCurrentPlaylist} currentplaylist={currentplaylist} />
 
         <div className="relative maincontent bg-[#121212] mt-2 w-[calc(100vw-328px)] rounded-lg h-[calc(100vh-87px)] overflow-hidden overflow-y-auto">
 
-          <PlaylistWindow playlists={playlists} folderPath={folderPath}/>
+          <PlaylistWindow playlists={playlists} folderPath={folderPath} currentSong={currentSong} setCurrentPlaylist={setCurrentPlaylist} setCurrentSong={setCurrentSong}  currentplaylist={currentplaylist} />
         
         </div>
       </div>

@@ -9,8 +9,8 @@ import { useState } from 'react';
 import Searchbar from './Searchbar';
 
 
-const PlaylistWindow = ({playlists,folderPath}) => {
-  const [currentplaylist, setCurrentPlaylist] = useState(playlists[0] || null);
+const PlaylistWindow = ({playlists,folderPath ,currentplaylist ,setCurrentPlaylist,currentSong,setCurrentSong}) => {
+  
 
   const handlePlaylistClick = (playlist) => {
     setCurrentPlaylist(playlist);

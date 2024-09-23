@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "express": "^4.21.0",
+    "jsmediatags": "^3.9.7",
+    "music-metadata-browser": "^2.5.11",
     "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18"
