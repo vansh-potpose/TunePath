@@ -9,25 +9,24 @@ import { useState } from 'react';
 import Searchbar from './Searchbar';
 
 
-const PlaylistWindow = ({playlists,folderPath ,currentplaylist ,setCurrentPlaylist,currentSong,setCurrentSong}) => {
+const PlaylistWindow = (props) => {
   
 
   const handlePlaylistClick = (playlist) => {
-    setCurrentPlaylist(playlist);
-    console.log('Selected Playlist:', playlist);
+    props.setCurrentPlaylist(playlist);
   };
 
   return (
     <>
           <Searchbar/>
     
-    { currentplaylist === null ?<><div className=" absolute w-full h-72 bg-gradient-to-b from-[#222222] to-[#121212] "></div>
-           </>:<SongsWindow currentplaylist={currentplaylist} folderPath={folderPath}/>}
+    { props.currentplaylist === null ?<><div className=" absolute w-full h-72 bg-gradient-to-b from-[#222222] to-[#121212] "></div>
+           </>:<SongsWindow currentplaylist={props.currentplaylist} folderPath={props.folderPath} currentSong={props.currentSong} setCurrentSong={props.setCurrentSong} songs={props.songs} setSongs={props.setSongs} setSongData={props.setSongData} songData={props.songData} song={props.song} setSong={props.setSong}/>}
           <div className="plylists mt-20 relative overflow-y-auto">
-            <h1 className="font-bold text-2xl mx-5 my-3">Your playlists</h1>
+            <h1 className="font-bold text-2xl mx-5 my-3">Your Playlists</h1>
             <div  className="m-3 flex flex-wrap gap-1">
           
-              {playlists.map((playlist, index) => (
+              {props.playlists.map((playlist, index) => (
                 <Songcard key={index} img={playlist.image} name={playlist.name.split('-')[0]}  creator={playlist.name.split('-')[1]} onClick={() => handlePlaylistClick(playlist)}/>
               ))}
             </div>

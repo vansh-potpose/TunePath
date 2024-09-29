@@ -10,10 +10,6 @@ const Searchbar = () => {
 
     <div className=" py-3 relative z-20 px-5 flex justify-between items-center">
               <div className="left flex items-center">
-              <div className="buttons flex gap-2">
-                  <SvgBtn d="M11.03.47a.75.75 0 0 1 0 1.06L4.56 8l6.47 6.47a.75.75 0 1 1-1.06 1.06L2.44 8 9.97.47a.75.75 0 0 1 1.06 0z"/>
-                  <SvgBtn d="M4.97.47a.75.75 0 0 0 0 1.06L11.44 8l-6.47 6.47a.75.75 0 1 0 1.06 1.06L13.56 8 6.03.47a.75.75 0 0 0-1.06 0z"/>
-              </div>
               <div className="searchBar mx-3 flex items-center gap-1 bg-stone-700 rounded-full">
                 <div className='flex items-center'>
                 <div className='h-8 w-8 flex items-center justify-center ml-2'>

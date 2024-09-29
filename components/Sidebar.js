@@ -40,3 +40,4 @@ const Sidebar = ({playlists ,setCurrentPlaylist,currentPlaylist}) => {
 }
 
 export default Sidebar
+  
