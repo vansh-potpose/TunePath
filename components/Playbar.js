@@ -10,6 +10,7 @@ function Playbar(props) {
   const seekbarRef = useRef(null);
   const circleref = useRef(null);
   const timecompleted= useRef(null);
+  const playbarref = useRef(null);
 
   useEffect(() => {
     if (props.song) {
@@ -84,6 +85,16 @@ function Playbar(props) {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  const handleSeekbarClick = (e) => {
+    const   seekbarWidth = playbarref.current.offsetWidth;
+    const clickPositionX = e.nativeEvent.offsetX;  
+    const percentage = (clickPositionX / seekbarWidth) * 100;
+    if(props.currentSong){
+
+      props.currentSong.currentTime = (convertToSeconds(props.songData[props.song]?.duration) * percentage) / 100;  // Set audio time
+    }
+  };
+
   return (
     <div className='songdetails mx-2 my-1 flex items-center'>
       <div className='group flex flex-row gap-3 items-center p-2 rounded-lg w-[400px]'>
@@ -117,7 +128,7 @@ function Playbar(props) {
           <div className="lower flex gap-2 text-sm items-center">
             <div ref={timecompleted} className="timecompleted">0:00</div>
 
-            <div className="playbar-scroll relative group flex items-center overflow-visible playscroll bg-stone-900 h-[5px] rounded-full w-[550px]">
+            <div onClick={(e)=>{handleSeekbarClick(e)}} ref={playbarref} className="playbar-scroll relative group flex items-center overflow-visible playscroll bg-stone-900 h-[5px] rounded-full w-[550px]">
               <div id='seekbar_val' ref={seekbarRef} className="seekbar w-full h-full rounded-full group-hover:rounded-e-none bg-white group-hover:bg-green-600"></div>
               <div ref={circleref} className='circle absolute -top-full z-50 group-hover:opacity-100 hover:opacity-100 opacity-0 bg-white h-4 w-4 rounded-full'></div>
             </div>
