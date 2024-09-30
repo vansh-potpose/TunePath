@@ -18,7 +18,7 @@ const PlaylistWindow = (props) => {
 
   return (
     <>
-          <Searchbar/>
+          <Searchbar folderPath={props.folderPath} setFolderPath={props.setFolderPath}/>
     
     { props.currentplaylist === null ?<><div className=" absolute w-full h-72 bg-gradient-to-b from-[#222222] to-[#121212] "></div>
            </>:<SongsWindow currentplaylist={props.currentplaylist} folderPath={props.folderPath} currentSong={props.currentSong} setCurrentSong={props.setCurrentSong} songs={props.songs} setSongs={props.setSongs} setSongData={props.setSongData} songData={props.songData} song={props.song} setSong={props.setSong}/>}
@@ -26,7 +26,9 @@ const PlaylistWindow = (props) => {
             <h1 className="font-bold text-2xl mx-5 my-3">Your Playlists</h1>
             <div  className="m-3 flex flex-wrap gap-1">
           
-              {props.playlists.map((playlist, index) => (
+            { !props.playlists ||props.playlists.length === 0
+             ? <p className='text-[#b3b3b3] text-sm'>No Playlists</p> :
+              props.playlists.map((playlist, index) => (
                 <Songcard key={index} img={playlist.image} name={playlist.name.split('-')[0]}  creator={playlist.name.split('-')[1]} onClick={() => handlePlaylistClick(playlist)}/>
               ))}
             </div>

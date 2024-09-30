@@ -29,7 +29,9 @@ const Sidebar = ({playlists ,setCurrentPlaylist,currentPlaylist}) => {
           </button>
         </div>
         <div className='playlists overflow-y-auto'>
-          {playlists.map((playlist, index) => (
+          { !playlists ||playlists.length === 0
+           ? <p className='text-[#b3b3b3] text-sm'>No Playlists</p> : 
+          playlists.map((playlist, index) => (
             <PlaylistBtn key={index} cover={playlist.image} name={playlist.name.split("-")[0]} creator={playlist.name.split("-")[1] } onClick={() => handlePlaylistClick(playlist)} />
           ))}
         </div>

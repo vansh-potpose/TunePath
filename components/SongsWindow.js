@@ -134,7 +134,7 @@ const SongsWindow = (props) => {
             <table className="min-w-full text-left text-base font-thin">
               <thead className="border-b-2 border-[#424242]">
                 <tr>
-                  <th className="px-4 py-2 text-center w-20">Sr No.</th>
+                  <th className="px-4 py-2 text-center w-16">#</th>
                   <th className="px-4 py-2 w-[480px]">Title</th>
                   <th className="px-4 py-2 w-[300px]">Singers</th>
                   <th className="px-4 py-2 text-center">Duration</th>
