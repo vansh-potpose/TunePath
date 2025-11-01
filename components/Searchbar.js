@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import BWbtn from "@/components/BWbtn";
 import SvgBtn from "@/components/SvgBtn";
 import Image from 'next/image';
+import { UserPreferences } from '@/lib/storage';
 
 const Searchbar = (props) => {
   const [showingChoices, setShowingChoices] = useState(false);
@@ -10,20 +11,20 @@ const Searchbar = (props) => {
   const [timeoutId, setTimeoutId] = useState(null);
 
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     setShowingChoices(true);
     if (timeoutId) {
       clearTimeout(timeoutId);
       setTimeoutId(null);
     }
-  };
+  }, [timeoutId]);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     const id = setTimeout(() => {
       setShowingChoices(false);
     }, 1000); 
     setTimeoutId(id);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -34,47 +35,71 @@ const Searchbar = (props) => {
   }, [timeoutId]);
 
   useEffect(() => {
-    const storedPaths = JSON.parse(localStorage.getItem('folderPaths')) || [];
-    setFolderPaths(storedPaths);
-    
+    try {
+      const storedPaths = UserPreferences.getMusicFolders();
+      setFolderPaths(storedPaths);
+      // If parent doesn't have a folderPath yet, select the default one
+      if (!props.folderPath && storedPaths.length > 0) {
+        const defaultPath = UserPreferences.getDefaultMusicFolder() || storedPaths[0];
+        props.setFolderPath(defaultPath);
+      }
+    } catch (err) {
+      console.error('Failed to read music folders', err);
+      setFolderPaths([]);
+    }
+
   }, []);
 
-  useEffect(() => {
-    if(folderPaths.length > 0) {
-    localStorage.setItem('folderPaths', JSON.stringify(folderPaths));
-    }
-  }, [folderPaths]);
-
-  const showChoices = () => {
+  const showChoices = useCallback(() => {
     setShowingChoices(!showingChoices);
-  };
+  }, [showingChoices]);
 
-  const addFolderPath = () => {
-    if (newPath.trim() === "") return; 
-    setFolderPaths(prevPaths => {
-      const updatedPaths = [newPath, ...prevPaths.filter(path => path !== newPath)]; 
-
-      return updatedPaths.slice(0, 10); 
-    });
+  const addFolderPath = useCallback(() => {
+    const trimmed = newPath.trim();
+    if (trimmed === "") return; 
+    
+    // Add to storage
+    UserPreferences.addMusicFolder(trimmed);
+    
+    // Update local state
+    const updatedPaths = UserPreferences.getMusicFolders();
+    setFolderPaths(updatedPaths);
+    
+    props.setFolderPath(trimmed); // Set the new path as current folder path
     setNewPath(""); 
-  };
+    setShowingChoices(false);
+  }, [newPath, props]);
 
-  const handlePathChange = (e) => {
+  const handlePathChange = useCallback((e) => {
     setNewPath(e.target.value); 
-  };
+  }, []);
 
-  const deleteFolderPath = (path) => {
+  const deleteFolderPath = useCallback((path, e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
     const confirmDelete = window.confirm(`Are you sure you want to delete "${path}"?`);
     if (confirmDelete) {
-      setFolderPaths(prevPaths => prevPaths.filter(p => p !== path));
-
+      // Remove from storage
+      UserPreferences.removeMusicFolder(path);
+      
+      // Update local state
+      const updatedPaths = UserPreferences.getMusicFolders();
+      setFolderPaths(updatedPaths);
+      
+      // If the deleted path was the current one, set to default or first
+      if (props.folderPath === path) {
+        const newPath = UserPreferences.getDefaultMusicFolder() || updatedPaths[0] || '';
+        props.setFolderPath(newPath);
+      }
     }
-  };
+  }, [props]);
 
-  const handleLongClick = (path) => {
+  const handleLongClick = useCallback((path) => {
     const timer = setTimeout(() => deleteFolderPath(path), 2000); 
     return () => clearTimeout(timer); 
-  };
+  }, [deleteFolderPath]);
 
   return (
     <div className='absolute w-full z-50'>
@@ -111,6 +136,7 @@ const Searchbar = (props) => {
                   placeholder="folderpath"
                   value={newPath}
                   onChange={handlePathChange}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { addFolderPath(); } }}
                 />
                 <button className='bg-[#73f57e] px-3 py-2 ml-2 rounded-full max-w-fit' onClick={addFolderPath}>
                   Add
@@ -122,7 +148,11 @@ const Searchbar = (props) => {
                   <li
                     key={index}
                     className="text-white cursor-pointer flex justify-between items-center hover:bg-stone-800 p-2 rounded-lg" 
-                    onClick={() => props.setFolderPath(path)}
+                    onClick={() => {
+                      console.log('Switching to folder path:', path);
+                      props.setFolderPath(path);
+                      setShowingChoices(false);
+                    }}
                   >
                     <div className='max-w-[calc(100%-70px)] overflow-x-hidden text-ellipsis break-words'>
                     {path}
@@ -132,14 +162,11 @@ const Searchbar = (props) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteFolderPath(path);
-                        
-
                       }}
                       onContextMenu={(e) => {
                         e.stopPropagation();
                         handleLongClick(path);
                       }}
-                      
                     >delete</span>
                   </li>
                 ))}

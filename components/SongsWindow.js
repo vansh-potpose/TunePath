@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Image from "next/image";
 import { parseBlob } from 'music-metadata-browser';
+import { useAppState } from '@/contexts/AppStateContext';
+import LazyImage from '@/components/LazyImage';
 
 const formatTime = (duration) => {
   const minutes = Math.floor(duration / 60);
@@ -19,23 +21,54 @@ const transformSecondsToReadableFormat = (totalSeconds) => {
   if (hours > 0) parts.push(`${hours} hr${hours > 1 ? 's' : ''}`);
   if (minutes > 0) parts.push(`${minutes} min${minutes > 1 ? 's' : ''}`);
   if (seconds > 0) parts.push(`${seconds} sec${seconds > 1 ? 's' : ''}`);
-
-  return parts.join(' ');
+  const text = parts.join(' ');
+  return text || '0 sec';
 };
 
 const colors = ['#10B981', '#217980', '#c71543', '#49358d', '#71bdc4', '#d9b086'];
 
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
 
-const SongsWindow = (props) => {
-  const [songs, setSongs] = useState(props.songs);
-  const [songData, setSongData] = useState(props.songData);
+const SongsWindow = ({ playSong }) => {
+  const { 
+    folderPath, 
+    currentPlaylist, 
+    songs, 
+    setSongs, 
+    songData, 
+    setSongData 
+  } = useAppState();
+  
   const [totalDuration, setTotalDuration] = useState(0);
   const [bgColor, setBgColor] = useState(getRandomColor());
 
+  // Memoize the full path to avoid recalculation (with guards)
+  const playlistPath = useMemo(() => {
+    const name = currentPlaylist?.name || '';
+    const root = folderPath || '';
+    return name && root ? `${root}/${name}` : '';
+  }, [folderPath, currentPlaylist?.name]);
+
+  // Memoize formatted duration
+  const formattedDuration = useMemo(() => 
+    transformSecondsToReadableFormat(totalDuration),
+    [totalDuration]
+  );
+
+  // Memoize playlist info splits with safe fallbacks
+  const { playlistName, playlistAuthor } = useMemo(() => {
+    const raw = currentPlaylist?.name || '';
+    const parts = raw.split('-');
+    return {
+      playlistName: (parts[0] || raw).trim(),
+      playlistAuthor: (parts[1] || '').trim(),
+    };
+  }, [currentPlaylist?.name]);
+
   useEffect(() => {
+    if (!playlistPath) return;
     const fetchSongs = async () => {
-      const response = await fetch(`/api/getSongs?path=${encodeURIComponent(props.folderPath + '/' + props.currentplaylist.name)}`);
+      const response = await fetch(`/api/getSongs?path=${encodeURIComponent(playlistPath)}`);
       const data = await response.json();
 
       if (data.songs) {
@@ -46,77 +79,138 @@ const SongsWindow = (props) => {
     };
 
     fetchSongs();
-  }, [props.folderPath, props.currentplaylist.name]);
+  }, [playlistPath, setSongs]);
 
   useEffect(() => {
-    const fetchSongData = async () => {
-      const songDataMap = {};
-      let totalTime = 0;
-
-      for (const song of songs) {
-        const audioUrl = `/api/getSong?path=${encodeURIComponent(`${props.folderPath + '/' + props.currentplaylist.name}/${song}`)}`;
+    const getDurationFromBlob = (blob) => {
+      return new Promise((resolve) => {
         try {
-          const response = await fetch(audioUrl);
-          const blob = await response.blob();
-          const metadata = await parseBlob(blob);
-
-          const picture = metadata.common.picture?.[0];
-          let imageUrl = "/music.svg"; 
-          if (picture) {
-            const base64String = btoa(
-              new Uint8Array(picture.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
-            );
-            imageUrl = `data:${picture.format};base64,${base64String}`;
-          }
-
-          const duration = metadata.format.duration || 0;
-          totalTime += duration;
-
-          songDataMap[song] = {
-            imageUrl,
-            duration: formatTime(duration),
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio();
+          audio.preload = 'metadata';
+          const cleanup = () => {
+            URL.revokeObjectURL(url);
           };
-        } catch (error) {
-          console.error('Error fetching or parsing audio file:', error);
-          songDataMap[song] = { imageUrl: "/music.svg", duration: formatTime(0) };
+          const onLoaded = () => {
+            const d = isFinite(audio.duration) ? audio.duration : 0;
+            cleanup();
+            resolve(d || 0);
+          };
+          const onError = () => {
+            cleanup();
+            resolve(0);
+          };
+          audio.addEventListener('loadedmetadata', onLoaded, { once: true });
+          audio.addEventListener('error', onError, { once: true });
+          // safety timeout
+          setTimeout(() => {
+            audio.removeEventListener('loadedmetadata', onLoaded);
+            audio.removeEventListener('error', onError);
+            cleanup();
+            resolve(0);
+          }, 3000);
+          audio.src = url;
+        } catch (e) {
+          resolve(0);
         }
-      }
-
-      setSongData(songDataMap);
-      setTotalDuration(totalTime);
+      });
     };
 
-    if (songs.length > 0) {
+    const fetchSongData = async () => {
+      const results = await Promise.all(
+        songs.map(async (song) => {
+          const audioUrl = `/api/getSong?path=${encodeURIComponent(`${playlistPath}/${song}`)}`;
+          try {
+            const response = await fetch(audioUrl);
+            const blob = await response.blob();
+            const metadata = await parseBlob(blob);
+
+            const picture = metadata.common.picture?.[0];
+            let imageUrl = "/music.svg";
+            if (picture) {
+              const base64String = btoa(
+                new Uint8Array(picture.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+              );
+              imageUrl = `data:${picture.format};base64,${base64String}`;
+            }
+
+            let duration = metadata.format.duration || 0;
+            if (!duration) {
+              duration = await getDurationFromBlob(blob);
+            }
+
+            const baseName = song.replace(/\.[^/.]+$/, '');
+            const parts = baseName.split('-');
+            const fallbackTitle = (parts[0] || baseName).trim();
+            const fallbackArtist = (parts[1] ? parts[1] : '').replace(/\.[^/.]+$/, '').trim();
+
+            const metaTitle = (metadata.common.title || '').trim();
+            const metaArtist = (metadata.common.artists && metadata.common.artists.length)
+              ? metadata.common.artists.join(', ')
+              : (metadata.common.artist || '').trim();
+
+            return {
+              song,
+              data: {
+                imageUrl,
+                duration: formatTime(duration),
+                title: metaTitle || fallbackTitle,
+                artist: metaArtist || fallbackArtist,
+              },
+              rawDuration: duration,
+            };
+          } catch (error) {
+            console.error('Error fetching or parsing audio file:', error);
+            const baseName = song.replace(/\.[^/.]+$/, '');
+            const parts = baseName.split('-');
+            return {
+              song,
+              data: {
+                imageUrl: "/music.svg",
+                duration: formatTime(0),
+                title: (parts[0] || baseName).trim(),
+                artist: (parts[1] ? parts[1] : '').trim(),
+              },
+              rawDuration: 0,
+            };
+          }
+        })
+      );
+
+      const map = {};
+      let total = 0;
+      results.forEach(({ song, data, rawDuration }) => {
+        map[song] = data;
+        total += rawDuration || 0;
+      });
+
+      setSongData(map);
+      setTotalDuration(total);
+    };
+
+    if (playlistPath && songs.length > 0) {
       fetchSongData();
     }
 
     setBgColor(getRandomColor());
-  }, [songs, props.folderPath, props.currentplaylist.name]);
+  }, [songs, playlistPath, setSongData]);
 
-  const handlePlaySong = (song) => {
-    const songUrl = `/api/getSong?path=${encodeURIComponent(`${props.folderPath + '/' + props.currentplaylist.name}/${song}`)}`;
-    props.setCurrentSong(songUrl);
-    
-    if (props.song !== song) {
-      props.setSong(song);
-    }
-    if(props.songData !== songData){
-
-      props.setSongData(songData)
-      props.setSongs(songs);
-    }
-  };
+  const handlePlaySong = useCallback((song) => {
+    if (!playlistPath) return;
+    const songUrl = `/api/getSong?path=${encodeURIComponent(`${playlistPath}/${song}`)}`;
+    playSong(songUrl, song);
+  }, [playlistPath, playSong]);
 
   return (
     <>
       <div className="absolute w-full h-[500px]" style={{ backgroundImage: `linear-gradient(to bottom,${bgColor},#121212)` }}></div>
       <div className="my-20 py-3 relative z-20 px-6">
         <div className='flex items-center gap-4 my-4'>
-          <Image src={`/api/getImage?path=${encodeURIComponent(props.currentplaylist.image)}`} alt="playlist cover" className='rounded-lg shadow-md shadow-[#2d2d2d]' width={180} height={180} />
+          <Image src={currentPlaylist?.image ? `/api/getImage?path=${encodeURIComponent(currentPlaylist.image)}` : '/music.svg'} alt="playlist cover" className='rounded-lg shadow-md shadow-[#2d2d2d]' width={180} height={180} />
           <div>
             <h1>Playlist</h1>
-            <h1 className='font-bold text-7xl my-2'>{props.currentplaylist.name.split('-')[0]}</h1>
-            <p><strong>{props.currentplaylist.name.split('-')[1]}</strong> - {songs.length} songs, {transformSecondsToReadableFormat(totalDuration)}</p>
+            <h1 className='font-bold text-7xl my-2'>{playlistName}</h1>
+            <p><strong>{playlistAuthor}</strong> - {songs.length} songs, {formattedDuration}</p>
           </div>
         </div>
 
@@ -151,11 +245,19 @@ const SongsWindow = (props) => {
                             <path fill='#ffffff' d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
                           </svg>
                         </div>
-                        <img src={songData[song]?.imageUrl || "/music.svg"} alt="playlist" className="rounded-md w-[42px]" />
+                        <LazyImage
+                          src={songData[song]?.imageUrl || "/music.svg"}
+                          alt="playlist"
+                          width={42}
+                          height={42}
+                          className="rounded-md w-[42px] h-[42px]"
+                          placeholder="/music.svg"
+                          rootMargin="150px"
+                        />
                       </div>
-                      {song.split('-')[0]}
+                      {songData[song]?.title || song.replace(/\.[^/.]+$/, '').split('-')[0]}
                     </td>
-                    <td className="px-4 py-2">{song.split('.')[0].split('-')[1]}</td>
+                    <td className="px-4 py-2">{songData[song]?.artist || (song.replace(/\.[^/.]+$/, '').split('-')[1] || '')}</td>
                     <td className="px-4 py-2 text-center">{songData[song]?.duration || '00:00'}</td>
                   </tr>
                 ))}

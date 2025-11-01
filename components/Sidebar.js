@@ -2,8 +2,10 @@
 import React from 'react'
 import Hoverbtn from './Hoverbtn'
 import PlaylistBtn from '@/components/PlaylistBtn'
-import { useState } from 'react'
-const Sidebar = ({playlists ,setCurrentPlaylist,currentPlaylist}) => {
+import { useAppState } from '@/contexts/AppStateContext'
+
+const Sidebar = () => {
+  const { playlists, setCurrentPlaylist } = useAppState();
 
   const handlePlaylistClick = (playlist) => {
     setCurrentPlaylist(playlist);

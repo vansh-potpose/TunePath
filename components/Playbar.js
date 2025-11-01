@@ -1,6 +1,8 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Image from 'next/image';
+import LazyImage from '@/components/LazyImage';
+import { rafThrottle } from '@/lib/performance';
 
 function Playbar(props) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -12,12 +14,42 @@ function Playbar(props) {
   const timecompleted= useRef(null);
   const playbarref = useRef(null);
 
+  // Memoize parsed song info from metadata with fallbacks to filename
+  const songInfo = useMemo(() => {
+    if (!props.song) return { name: "", creator: "" };
+    const meta = props.songData?.[props.song] || {};
+    const base = props.song.replace(/\.[^/.]+$/, '');
+    const parts = base.split('-');
+    const fallbackName = (parts[0] || base).trim();
+    const fallbackCreator = (parts[1] ? parts[1] : '').trim();
+    return {
+      name: (meta.title || fallbackName) || "",
+      creator: (meta.artist || fallbackCreator) || "",
+    };
+  }, [props.song, props.songData]);
+
+  const formatTime = useCallback((time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }, []);
+
+  const convertToSeconds = useCallback((timeString) => {
+    if (!timeString) return 0;
+    const [minutes, seconds] = timeString.split(':').map(Number);
+    return minutes * 60 + seconds;
+  }, []);
+
+  // Memoize song duration in seconds
+  const songDuration = useMemo(() => {
+    if (!props.songData || !props.song) return 0;
+    return convertToSeconds(props.songData[props.song]?.duration);
+  }, [props.songData, props.song, convertToSeconds]);
+
   useEffect(() => {
-    if (props.song) {
-      setName(props.song.split('-')[0]);
-      setCreator(props.song.split('-')[1].split('.')[0]);
-    }
-  }, [props.song]);
+    setName(songInfo.name);
+    setCreator(songInfo.creator);
+  }, [songInfo]);
 
   useEffect(() => {
     if (props.currentSong) {
@@ -29,25 +61,20 @@ function Playbar(props) {
   
       props.currentSong.addEventListener('ended', handleSongEnd);
   
-        return () => {
+      return () => {
         props.currentSong.removeEventListener('ended', handleSongEnd);
       };
     }
-  }, [props.currentSong, volume]);
-  
+  }, [props.currentSong, volume, props.nextSong]);
 
-  const handleVolumeChange = (e) => {
+
+
+  const handleVolumeChange = useCallback((e) => {
     const newVolume = e.target.value; 
     setVolume(newVolume);
-  };
+  }, []);
 
-  function convertToSeconds(timeString) {
-    if (!timeString) return 0;
-    const [minutes, seconds] = timeString.split(':').map(Number);
-    return minutes * 60 + seconds;
-  }
-
-  const Playcurrentsong = () => {
+  const Playcurrentsong = useCallback(() => {
     if (!props.currentSong) return;
     if (props.currentSong.paused) {
       props.currentSong.play();
@@ -56,20 +83,23 @@ function Playbar(props) {
       props.currentSong.pause();
       setIsPlaying(false); 
     }
-  };
+  }, [props.currentSong]);
 
-  const updateSeekBar = () => {
+  // Use RAF throttling for smooth seekbar updates
+  const updateSeekBar = useCallback(rafThrottle(() => {
     if (props.currentSong && seekbarRef.current && circleref.current) {
-      const duration = convertToSeconds(props.songData[props.song]?.duration);
-      if (duration > 0) {
-        const progress = (props.currentSong.currentTime / duration) * 100;
+      if (songDuration > 0) {
+        const progress = (props.currentSong.currentTime / songDuration) * 100;
         seekbarRef.current.style.width = `${progress}%`;
-        timecompleted.current.innerHTML = formatTime(props.currentSong.currentTime);
+        if (timecompleted.current) {
+          timecompleted.current.innerHTML = formatTime(props.currentSong.currentTime);
+        }
         circleref.current.style.left = `calc(${progress}% - 8px)`; 
       }
     }
-  };
+  }), [props.currentSong, songDuration, formatTime]);
 
+  // Register timeupdate listener AFTER updateSeekBar is defined
   useEffect(() => {
     if (props.currentSong) {
       props.currentSong.addEventListener('timeupdate', updateSeekBar);
@@ -77,28 +107,29 @@ function Playbar(props) {
         props.currentSong.removeEventListener('timeupdate', updateSeekBar);
       };
     }
-  }, [props.currentSong]);
+  }, [props.currentSong, updateSeekBar]);
 
-  const formatTime = (time) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  };
-
-  const handleSeekbarClick = (e) => {
-    const   seekbarWidth = playbarref.current.offsetWidth;
+  const handleSeekbarClick = useCallback((e) => {
+    const seekbarWidth = playbarref.current.offsetWidth;
     const clickPositionX = e.nativeEvent.offsetX;  
     const percentage = (clickPositionX / seekbarWidth) * 100;
-    if(props.currentSong){
-
-      props.currentSong.currentTime = (convertToSeconds(props.songData[props.song]?.duration) * percentage) / 100;  // Set audio time
+    if(props.currentSong && songDuration > 0){
+      props.currentSong.currentTime = (songDuration * percentage) / 100;
     }
-  };
+  }, [props.currentSong, songDuration]);
 
   return (
     <div className='songdetails mx-2 my-1 flex items-center'>
       <div className='group flex flex-row gap-3 items-center p-2 rounded-lg w-[400px]'>
-        <img src={props.songData[props.song]?.imageUrl || "/music.svg"} alt="Song cover" className="rounded-md w-[55px]" />
+        <LazyImage
+          src={props.songData?.[props.song]?.imageUrl || "/music.svg"}
+          alt="Song cover"
+          width={55}
+          height={55}
+          className="rounded-md w-[55px] h-[55px]"
+          placeholder="/music.svg"
+          rootMargin="150px"
+        />
         <div className='flex flex-col'>
           <h3 className='text-white font-medium text-base mb-1'>{name || "Song Name"}</h3>
           <p className='text-[#b3b3b3] text-sm'>{creator || "Creator Name"}</p>
@@ -132,7 +163,7 @@ function Playbar(props) {
               <div id='seekbar_val' ref={seekbarRef} className="seekbar w-full h-full rounded-full group-hover:rounded-e-none bg-white group-hover:bg-green-600"></div>
               <div ref={circleref} className='circle absolute -top-full z-50 group-hover:opacity-100 hover:opacity-100 opacity-0 bg-white h-4 w-4 rounded-full'></div>
             </div>
-            <div className="timetocomplete">{props.songData[props.song]?.duration||"0:00"}</div>
+            <div className="timetocomplete">{props.songData?.[props.song]?.duration || "0:00"}</div>
           </div>
         </div>
 
