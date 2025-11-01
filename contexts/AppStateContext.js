@@ -28,17 +28,17 @@ export function AppStateProvider({ children }) {
     }
   }, []);
 
-  // Load last playback state
-  useEffect(() => {
-    try {
-      const playbackState = PlaybackState.getAll();
-      if (playbackState.currentPlaylist) {
-        setCurrentPlaylist(playbackState.currentPlaylist);
-      }
-    } catch (error) {
-      console.error('Error loading playback state:', error);
-    }
-  }, []);
+  // Don't restore playlist on mount - user should select one
+  // useEffect(() => {
+  //   try {
+  //     const playbackState = PlaybackState.getAll();
+  //     if (playbackState.currentPlaylist) {
+  //       setCurrentPlaylist(playbackState.currentPlaylist);
+  //     }
+  //   } catch (error) {
+  //     console.error('Error loading playback state:', error);
+  //   }
+  // }, []);
 
   // Fetch playlists when folder path changes
   useEffect(() => {

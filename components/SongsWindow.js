@@ -5,6 +5,7 @@ import Image from "next/image";
 import { parseBlob } from 'music-metadata-browser';
 import { useAppState } from '@/contexts/AppStateContext';
 import LazyImage from '@/components/LazyImage';
+import PlaylistImage from '@/components/PlaylistImage';
 
 const formatTime = (duration) => {
   const minutes = Math.floor(duration / 60);
@@ -41,11 +42,18 @@ const SongsWindow = ({ playSong }) => {
   
   const [totalDuration, setTotalDuration] = useState(0);
   const [bgColor, setBgColor] = useState(getRandomColor());
+  const [playlistCoverImage, setPlaylistCoverImage] = useState(null);
 
   // Memoize the full path to avoid recalculation (with guards)
   const playlistPath = useMemo(() => {
     const name = currentPlaylist?.name || '';
     const root = folderPath || '';
+    
+    // Handle special case: songs directly in parent folder
+    if (name && name.startsWith('🎵 Songs in this folder')) {
+      return root; // Return parent folder path
+    }
+    
     return name && root ? `${root}/${name}` : '';
   }, [folderPath, currentPlaylist?.name]);
 
@@ -179,13 +187,25 @@ const SongsWindow = ({ playSong }) => {
 
       const map = {};
       let total = 0;
-      results.forEach(({ song, data, rawDuration }) => {
+      let coverImage = null;
+      
+      results.forEach(({ song, data, rawDuration }, index) => {
         map[song] = data;
         total += rawDuration || 0;
+        
+        // Use the first song's image as playlist cover if no dedicated cover exists
+        if (index === 0 && data.imageUrl && data.imageUrl !== "/music.svg") {
+          coverImage = data.imageUrl;
+        }
       });
 
       setSongData(map);
       setTotalDuration(total);
+      
+      // Set playlist cover from first song if available
+      if (coverImage && !currentPlaylist?.image) {
+        setPlaylistCoverImage(coverImage);
+      }
     };
 
     if (playlistPath && songs.length > 0) {
@@ -206,11 +226,18 @@ const SongsWindow = ({ playSong }) => {
       <div className="absolute w-full h-[500px]" style={{ backgroundImage: `linear-gradient(to bottom,${bgColor},#121212)` }}></div>
       <div className="my-20 py-3 relative z-20 px-6">
         <div className='flex items-center gap-4 my-4'>
-          <Image src={currentPlaylist?.image ? `/api/getImage?path=${encodeURIComponent(currentPlaylist.image)}` : '/music.svg'} alt="playlist cover" className='rounded-lg shadow-md shadow-[#2d2d2d]' width={180} height={180} />
-          <div>
-            <h1>Playlist</h1>
-            <h1 className='font-bold text-7xl my-2'>{playlistName}</h1>
-            <p><strong>{playlistAuthor}</strong> - {songs.length} songs, {formattedDuration}</p>
+          <PlaylistImage 
+            playlist={currentPlaylist}
+            width={180}
+            height={180}
+            className="rounded-lg shadow-md shadow-[#2d2d2d] flex-shrink-0"
+          />
+          <div className='flex-1 min-w-0'>
+            <h1 className='text-sm'>Playlist</h1>
+            <h1 className='font-bold text-7xl my-2 break-words' style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{playlistName}</h1>
+            <p className='truncate' title={`${playlistAuthor} - ${songs.length} songs, ${formattedDuration}`}>
+              <strong>{playlistAuthor}</strong> - {songs.length} songs, {formattedDuration}
+            </p>
           </div>
         </div>
 
@@ -225,42 +252,50 @@ const SongsWindow = ({ playSong }) => {
 
         <div>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-base font-thin">
+            <table className="min-w-full text-left text-base font-thin table-fixed">
               <thead className="border-b-2 border-[#424242]">
                 <tr>
                   <th className="px-4 py-2 text-center w-16">#</th>
-                  <th className="px-4 py-2 w-[480px]">Title</th>
-                  <th className="px-4 py-2 w-[300px]">Singers</th>
-                  <th className="px-4 py-2 text-center">Duration</th>
+                  <th className="px-4 py-2 w-[40%]">Title</th>
+                  <th className="px-4 py-2 w-[30%]">Singers</th>
+                  <th className="px-4 py-2 text-center w-[100px]">Duration</th>
                 </tr>
               </thead>
               <tbody>
-                {songs.map((song, index) => (
-                  <tr key={index} className="group hover:bg-[#1f1f1f] text-slate-300 hover:text-white" onClick={() => handlePlaySong(song)}>
-                    <td className="px-4 py-2 text-center">{index + 1}</td>
-                    <td className="px-4 py-2 flex items-center gap-4">
-                      <div className='relative'>
-                        <div className='absolute bg-stone-800 bg-opacity-40 w-full h-full flex items-center justify-center opacity-0 invisible group-hover:opacity-100 group-hover:visible'>
-                          <svg viewBox="0 0 24 24" className='w-6'>
-                            <path fill='#ffffff' d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
-                          </svg>
+                {songs.map((song, index) => {
+                  const title = songData[song]?.title || song.replace(/\.[^/.]+$/, '').split('-')[0];
+                  const artist = songData[song]?.artist || (song.replace(/\.[^/.]+$/, '').split('-')[1] || '');
+                  return (
+                    <tr key={index} className="group hover:bg-[#1f1f1f] text-slate-300 hover:text-white" onClick={() => handlePlaySong(song)}>
+                      <td className="px-4 py-2 text-center">{index + 1}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className='relative flex-shrink-0'>
+                            <div className='absolute bg-stone-800 bg-opacity-40 w-full h-full flex items-center justify-center opacity-0 invisible group-hover:opacity-100 group-hover:visible'>
+                              <svg viewBox="0 0 24 24" className='w-6'>
+                                <path fill='#ffffff' d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
+                              </svg>
+                            </div>
+                            <LazyImage
+                              src={songData[song]?.imageUrl || "/music.svg"}
+                              alt="playlist"
+                              width={42}
+                              height={42}
+                              className="rounded-md w-[42px] h-[42px]"
+                              placeholder="/music.svg"
+                              rootMargin="150px"
+                            />
+                          </div>
+                          <span className="truncate" title={title}>{title}</span>
                         </div>
-                        <LazyImage
-                          src={songData[song]?.imageUrl || "/music.svg"}
-                          alt="playlist"
-                          width={42}
-                          height={42}
-                          className="rounded-md w-[42px] h-[42px]"
-                          placeholder="/music.svg"
-                          rootMargin="150px"
-                        />
-                      </div>
-                      {songData[song]?.title || song.replace(/\.[^/.]+$/, '').split('-')[0]}
-                    </td>
-                    <td className="px-4 py-2">{songData[song]?.artist || (song.replace(/\.[^/.]+$/, '').split('-')[1] || '')}</td>
-                    <td className="px-4 py-2 text-center">{songData[song]?.duration || '00:00'}</td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="truncate" title={artist}>{artist}</div>
+                      </td>
+                      <td className="px-4 py-2 text-center">{songData[song]?.duration || '00:00'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

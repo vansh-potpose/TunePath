@@ -45,16 +45,51 @@ export async function GET(req) {
 
     const files = fs.readdirSync(folderAbsolutePath);
 
-    const folders = files
+    // Check if there are audio files directly in the parent folder
+    const audioFilesInParent = files.filter((file) => {
+      const filePath = path.join(folderAbsolutePath, file);
+      try {
+        const stat = fs.statSync(filePath);
+        return !stat.isDirectory() && (
+          file.toLowerCase().endsWith('.mp3') || 
+          file.toLowerCase().endsWith('.m4a') ||
+          file.toLowerCase().endsWith('.flac') ||
+          file.toLowerCase().endsWith('.wav')
+        );
+      } catch (error) {
+        return false;
+      }
+    });
+
+    const folders = [];
+
+    // If there are audio files in the parent folder, create a virtual playlist
+    if (audioFilesInParent.length > 0) {
+      const firstAudioFile = audioFilesInParent[0];
+      const audioPath = path.join(folderAbsolutePath, firstAudioFile);
+      folders.push({
+        name: '🎵 Songs in this folder-Mixed',
+        isDirectory: false,
+        image: `AUDIO:${audioPath}`,
+      });
+    }
+
+    // Process subdirectories
+    const subfolders = files
       .map((file) => {
         try {
           const filePath = path.join(folderAbsolutePath, file);
           const stat = fs.statSync(filePath);
           
+          // Only process directories
+          if (!stat.isDirectory()) {
+            return null;
+          }
+          
           return {
             name: file,
-            isDirectory: stat.isDirectory(),
-            image: stat.isDirectory() ? getImageFromFolder(filePath) : null,
+            isDirectory: true,
+            image: getImageFromFolder(filePath),
           };
         } catch (error) {
           console.error(`Error processing file ${file}:`, error);
@@ -62,6 +97,8 @@ export async function GET(req) {
         }
       })
       .filter(item => item !== null);
+
+    folders.push(...subfolders);
 
     return NextResponse.json({ folders }, { status: 200 });
   } catch (error) {
@@ -82,10 +119,22 @@ export async function GET(req) {
 function getImageFromFolder(folderPath) {
   try {
     const files = fs.readdirSync(folderPath);
-    const imageFile = files.find((file) => 
-      hasValidExtension(file, ALLOWED_IMAGE_EXTENSIONS)
+    
+    // Find the first audio file
+    const audioFile = files.find((file) => 
+      file.toLowerCase().endsWith('.mp3') || 
+      file.toLowerCase().endsWith('.m4a') ||
+      file.toLowerCase().endsWith('.flac') ||
+      file.toLowerCase().endsWith('.wav')
     );
-    return imageFile ? path.join(folderPath, imageFile) : null;
+    
+    if (audioFile) {
+      // Return a special marker that indicates we should extract from audio
+      const audioPath = path.join(folderPath, audioFile);
+      return `AUDIO:${audioPath}`;
+    }
+    
+    return null;
   } catch (error) {
     console.error('Error reading folder images:', error);
     return null;

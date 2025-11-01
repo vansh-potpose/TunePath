@@ -45,7 +45,13 @@ export default function Home() {
     if (newIndex < 0) {
       newIndex = songs.length - 1;
     }
-    const songUrl = `/api/getSong?path=${encodeURIComponent(folderPath + '/' + currentPlaylist.name + '/' + songs[newIndex])}`;
+    
+    // Handle special case: songs in parent folder
+    const playlistPath = currentPlaylist.name.startsWith('🎵 Songs in this folder')
+      ? folderPath
+      : `${folderPath}/${currentPlaylist.name}`;
+    
+    const songUrl = `/api/getSong?path=${encodeURIComponent(playlistPath + '/' + songs[newIndex])}`;
     playSong(songUrl, songs[newIndex]);
   };
 
@@ -56,7 +62,13 @@ export default function Home() {
     if (newIndex >= songs.length) {
       newIndex = 0;
     }
-    const songUrl = `/api/getSong?path=${encodeURIComponent(folderPath + '/' + currentPlaylist.name + '/' + songs[newIndex])}`;
+    
+    // Handle special case: songs in parent folder
+    const playlistPath = currentPlaylist.name.startsWith('🎵 Songs in this folder')
+      ? folderPath
+      : `${folderPath}/${currentPlaylist.name}`;
+    
+    const songUrl = `/api/getSong?path=${encodeURIComponent(playlistPath + '/' + songs[newIndex])}`;
     playSong(songUrl, songs[newIndex]);
   };
 

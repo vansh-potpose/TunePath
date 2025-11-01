@@ -120,19 +120,17 @@ function Playbar(props) {
 
   return (
     <div className='songdetails mx-2 my-1 flex items-center'>
-      <div className='group flex flex-row gap-3 items-center p-2 rounded-lg w-[400px]'>
-        <LazyImage
+      <div className='group flex flex-row gap-3 items-center p-2 rounded-lg w-[400px] min-w-0'>
+        <img
           src={props.songData?.[props.song]?.imageUrl || "/music.svg"}
           alt="Song cover"
           width={55}
           height={55}
-          className="rounded-md w-[55px] h-[55px]"
-          placeholder="/music.svg"
-          rootMargin="150px"
+          className="rounded-md w-[55px] h-[55px] object-cover flex-shrink-0"
         />
-        <div className='flex flex-col'>
-          <h3 className='text-white font-medium text-base mb-1'>{name || "Song Name"}</h3>
-          <p className='text-[#b3b3b3] text-sm'>{creator || "Creator Name"}</p>
+        <div className='flex flex-col min-w-0 flex-1'>
+          <h3 className='text-white font-medium text-base mb-1 truncate' title={name || "Song Name"}>{name || "Song Name"}</h3>
+          <p className='text-[#b3b3b3] text-sm truncate' title={creator || "Creator Name"}>{creator || "Creator Name"}</p>
         </div>
       </div>
 
